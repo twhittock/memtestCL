@@ -16,14 +16,14 @@
 #include <string.h>
 
 int main(int argc,char** argv) {
-    if (argc < 2 || strcmp(argv[1],"-i")) {
-            fprintf(stderr,"xxd -i [filename]\n");
+    if (argc < 3 || strcmp(argv[1],"-i")) {
+            fprintf(stderr,"xxd -i [filename] [variablename]\n");
             return 1;
     }
     FILE* f = fopen(argv[2],"rb");
     unsigned char block[16384];
     size_t nvalid = fread(block,1,16384,f);
-    printf("unsigned char %s[] = {\n  ",argv[2]);
+    printf("unsigned char %s[] = {\n  ",argv[3]);
     int curcol = 0;
     unsigned totalbytes = 0;
     while (nvalid > 0) {
@@ -40,7 +40,7 @@ int main(int argc,char** argv) {
         nvalid = fread(block,1,16384,f);
     }
     printf("\n};\n");
-    printf("unsigned int %s_len = %u;\n",argv[2],totalbytes);
+    printf("unsigned int %s_len = %u;\n",argv[3],totalbytes);
     fclose(f);
     return 0;
 }

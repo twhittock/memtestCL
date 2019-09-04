@@ -531,7 +531,7 @@ int main(int argc,const char** argv) {
         if (isatty(fileno(stdout))) {
             int i = 0;
             printf("\nPress <enter> to quit.\n");
-            i = getchar();
+            //i = getchar();
         }
         return (accumulatedErrors != 0);
     }

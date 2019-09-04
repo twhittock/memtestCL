@@ -11,6 +11,8 @@
  *
  */
 
+#pragma warning(disable:4700)
+
 #include "memtestCL_core.h"
 
 #include <iostream>

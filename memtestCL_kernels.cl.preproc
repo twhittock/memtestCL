@@ -1,0 +1,484 @@
+#line 1 "C:\\Users\\Col Rodgers\\Downloads\\memtestCL-master\\memtestCL_kernels.cl"
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#line 39 "C:\\Users\\Col Rodgers\\Downloads\\memtestCL-master\\memtestCL_kernels.cl"
+
+
+
+unsigned __popc(uint x) { 
+
+    if (x == 0) return 0;
+    if ((x &= x-1) == 0) return 1; if ((x &= x-1) == 0) return 2; if ((x &= x-1) == 0) return 3; if ((x &= x-1) == 0) return 4; if ((x &= x-1) == 0) return 5; if ((x &= x-1) == 0) return 6; if ((x &= x-1) == 0) return 7; if ((x &= x-1) == 0) return 8;
+    if ((x &= x-1) == 0) return 9; if ((x &= x-1) == 0) return 10; if ((x &= x-1) == 0) return 11; if ((x &= x-1) == 0) return 12; if ((x &= x-1) == 0) return 13; if ((x &= x-1) == 0) return 14; if ((x &= x-1) == 0) return 15; if ((x &= x-1) == 0) return 16;
+    if ((x &= x-1) == 0) return 17; if ((x &= x-1) == 0) return 18; if ((x &= x-1) == 0) return 19; if ((x &= x-1) == 0) return 20; if ((x &= x-1) == 0) return 21; if ((x &= x-1) == 0) return 22; if ((x &= x-1) == 0) return 23; if ((x &= x-1) == 0) return 24;
+    if ((x &= x-1) == 0) return 25; if ((x &= x-1) == 0) return 26; if ((x &= x-1) == 0) return 27; if ((x &= x-1) == 0) return 28; if ((x &= x-1) == 0) return 29; if ((x &= x-1) == 0) return 30; if ((x &= x-1) == 0) return 31;
+    return 32;
+
+} 
+
+
+
+__kernel void deviceWriteConstant(__global uint* base, uint N, const uint konstant) { 
+    for (uint i = 0 ; i < N; i++) {      
+        *((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0))) = konstant;
+    }
+} 
+__kernel void deviceVerifyConstant(__global uint* base,uint N,const uint konstant,__global uint* blockErrorCount,__local uint* threadErrorCount) { 
+    
+    
+    
+    
+
+    threadErrorCount[get_local_id(0)] = 0;
+
+    for (uint i = 0; i < N; i++) {
+        
+        threadErrorCount[get_local_id(0)] += __popc((*((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0)))) ^ (konstant));
+    }
+    
+    for (uint stride = get_local_size(0)>>1; stride > 0; stride >>= 1) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (get_local_id(0) < stride)
+            threadErrorCount[get_local_id(0)] += threadErrorCount[get_local_id(0) + stride];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if (get_local_id(0) == 0)
+        blockErrorCount[get_group_id(0)] = threadErrorCount[0];
+    
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+__kernel void deviceShortLCG0(__global uint* base,uint N,uint repeats,const int period) { 
+    
+    
+    int a,c;
+    switch (period) {
+        case 1024: a = 0x0fbfffff; c = 0x3bf75696; break;
+        case 512:  a = 0x61c8647f; c = 0x2b3e0000; break;
+        case 256:  a = 0x7161ac7f; c = 0x43840000; break;
+        case 128:  a = 0x0432b47f; c = 0x1ce80000; break;
+        case 2048: a = 0x763fffff; c = 0x4769466f; break;
+        default:   a = 0; c = 0; break;
+    }
+    
+    uint value = 0;
+    for (uint rep = 0; rep < repeats; rep++) { (value) = ~(value); for (uint iter = 0; iter < period; iter++) { (value) = ~(value); (value) = (a)*(value)+(c); (value) ^= 0xFFFFFFF0; (value) ^= 0xF; } (value) = ~(value);}
+
+    for (uint i = 0 ; i < N; i++) {
+        *((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0))) = value;
+    }
+} 
+
+
+__kernel void deviceShortLCG0Shmem(__global uint* base,uint N,uint repeats,const int period,__local uint* shmem) { 
+    
+    
+    int a,c;
+    switch (period) {
+        case 1024: a = 0x0fbfffff; c = 0x3bf75696; break;
+        case 512:  a = 0x61c8647f; c = 0x2b3e0000; break;
+        case 256:  a = 0x7161ac7f; c = 0x43840000; break;
+        case 128:  a = 0x0432b47f; c = 0x1ce80000; break;
+        case 2048: a = 0x763fffff; c = 0x4769466f; break;
+        default:   a = 0; c = 0; break;
+    }
+    shmem[get_local_id(0)] = 0;
+    for (uint rep = 0; rep < repeats; rep++) { (shmem[get_local_id(0)]) = ~(shmem[get_local_id(0)]); for (uint iter = 0; iter < period; iter++) { (shmem[get_local_id(0)]) = ~(shmem[get_local_id(0)]); (shmem[get_local_id(0)]) = (a)*(shmem[get_local_id(0)])+(c); (shmem[get_local_id(0)]) ^= 0xFFFFFFF0; (shmem[get_local_id(0)]) ^= 0xF; } (shmem[get_local_id(0)]) = ~(shmem[get_local_id(0)]);}
+
+    for (uint i = 0 ; i < N; i++) {
+        *((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0))) = shmem[get_local_id(0)];
+
+    }
+} 
+
+
+
+
+
+__kernel void deviceWritePairedConstants(__global uint* base,uint N,uint pattern0,uint pattern1) { 
+    
+    uint isodd = get_local_id(0) & 0x1;
+    isodd *= 0xFFFFFFFF;
+    
+    const uint pattern = (isodd & pattern1) | ((~isodd) & pattern0);
+    for (uint i = 0 ; i < N; i++) {      
+        *((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0))) = pattern;
+    }
+
+} 
+
+__kernel void deviceVerifyPairedConstants(__global uint* base,uint N,uint pattern0,uint pattern1,__global uint* blockErrorCount,__local uint* threadErrorCount) { 
+    
+    
+    
+    
+    
+    threadErrorCount[get_local_id(0)] = 0;
+    
+    uint isodd = get_local_id(0) & 0x1;
+    isodd *= 0xFFFFFFFF;
+    
+    const uint pattern = (isodd & pattern1) | ((~isodd) & pattern0);
+    
+    for (uint i = 0; i < N; i++) {
+        
+        threadErrorCount[get_local_id(0)] += __popc((*((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0)))) ^ (pattern));
+    }
+    
+    for (uint stride = get_local_size(0)>>1; stride > 0; stride >>= 1) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (get_local_id(0) < stride)
+            threadErrorCount[get_local_id(0)] += threadErrorCount[get_local_id(0) + stride];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if (get_local_id(0) == 0)
+        blockErrorCount[get_group_id(0)] = threadErrorCount[0];
+    
+    return;
+}
+
+
+__kernel void deviceWriteWalking32Bit(__global uint* base,uint N,int ones,uint shift) { 
+    
+
+    
+    
+    
+    
+    uint pattern = 1 << ((get_local_id(0) + shift) & 0x1f);
+    pattern = ones ? pattern : ~pattern;
+    
+    for (uint i = 0; i < N; i++) {
+        *((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0))) = pattern;
+    }
+} 
+
+__kernel void deviceVerifyWalking32Bit(__global uint* base,uint N,int ones,uint shift,__global uint* blockErrorCount,__local uint* threadErrorCount) { 
+    
+    
+    
+    
+    
+    threadErrorCount[get_local_id(0)] = 0;
+
+    uint pattern = 1 << ((get_local_id(0) + shift) & 0x1f);
+    pattern = ones ? pattern : ~pattern;
+    
+    for (uint i = 0; i < N; i++) {
+        
+        threadErrorCount[get_local_id(0)] += __popc((*((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0)))) ^ (pattern));
+    }
+    
+    for (uint stride = get_local_size(0)>>1; stride > 0; stride >>= 1) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (get_local_id(0) < stride)
+            threadErrorCount[get_local_id(0)] += threadErrorCount[get_local_id(0) + stride];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if (get_local_id(0) == 0)
+        blockErrorCount[get_group_id(0)] = threadErrorCount[0];
+    
+    return;
+}
+
+
+
+void deviceMul3131 (uint v1, uint v2,uint* LO, uint* HI)
+{
+    
+    
+    
+    *LO = v1*v2;
+    *HI = mul_hi(v1,v2);
+    *HI <<= 1;
+    *HI |= ((*LO) & 0x80000000) >> 31;
+    *LO &= 0x7FFFFFFF;
+    
+}
+
+uint deviceModMP31(uint LO,uint HI) {
+    
+    
+    
+    uint sum = LO+HI;
+    if (sum >= 0x80000000) {
+        
+        return sum - 0x80000000 + 1;
+    } else {
+        return sum;
+    }
+}
+uint deviceMulMP31(uint a,uint b) {
+    
+    
+    uint LO,HI;
+    deviceMul3131(a,b,&LO,&HI);
+    return deviceModMP31(LO,HI);
+}
+
+uint deviceExpoModMP31(uint base,uint exponent) {
+    uint result = 1;
+    while (exponent > 0) {
+        if (exponent & 1) {
+            result = deviceMulMP31(result,base);
+        }
+        exponent >>= 1;
+        base = deviceMulMP31(base,base);
+    }
+    return result;
+}
+
+
+uint deviceRan0p(int seed,int n) { 
+    uint an = deviceExpoModMP31(16807,n+1);
+    return deviceMulMP31(an,seed);
+}
+
+
+int deviceIrbit2(uint* seed) {
+    const uint IB1  = 1;
+    const uint IB2  = 2;
+    const uint IB5  = 16;
+    const uint IB18 = 131072;
+    const uint MASK = IB1+IB2+IB5;
+    if ((*seed) & IB18) {
+        *seed = (((*seed) ^ MASK) << 1) | IB1;
+        return 1;
+    } else {
+        *seed <<= 1;
+        return 0;
+    }
+}
+int deviceIrbit2_local(__local uint* seed) {
+    const uint IB1  = 1;
+    const uint IB2  = 2;
+    const uint IB5  = 16;
+    const uint IB18 = 131072;
+    const uint MASK = IB1+IB2+IB5;
+    if ((*seed) & IB18) {
+        *seed = (((*seed) ^ MASK) << 1) | IB1;
+        return 1;
+    } else {
+        *seed <<= 1;
+        return 0;
+    }
+}
+
+__kernel void deviceWriteRandomBlocks(__global uint* base,uint N,int seed,__local uint* randomBlock) { 
+    
+    
+    if (seed == 0) seed = 123459876+get_group_id(0);
+    uint bitSeed = deviceRan0p(seed + get_local_id(0),get_local_id(0));
+
+    for (uint i=0; i < N; i++) {
+        
+        
+        randomBlock[get_local_id(0)] = deviceRan0p(seed,get_local_id(0)) | (deviceIrbit2(&bitSeed) << 31);
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        
+        seed = randomBlock[get_local_size(0)-1];
+
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        
+        *((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0))) = randomBlock[get_local_id(0)];
+    }
+}
+
+__kernel void deviceVerifyRandomBlocks(__global uint* base,uint N,int seed,__global uint* blockErrorCount,__local uint* threadErrorCount,__local uint* randomBlock,__local uint* bitSeeds) { 
+    
+    
+    
+    
+    
+    threadErrorCount[get_local_id(0)] = 0;
+
+    
+    if (seed == 0) seed = 123459876+get_group_id(0);
+    
+    bitSeeds[get_local_id(0)] = deviceRan0p(seed + get_local_id(0),get_local_id(0));
+    for (uint i = 0; i < N; i++) {
+        
+        
+        
+        randomBlock[get_local_id(0)] = deviceRan0p(seed,get_local_id(0)) | (deviceIrbit2_local(bitSeeds+get_local_id(0)) << 31);
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        
+        seed = randomBlock[get_local_size(0)-1];
+        
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        threadErrorCount[get_local_id(0)] += __popc((*((base + get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0)))) ^ (randomBlock[get_local_id(0)]));
+        
+    }
+
+    
+    for (uint stride = get_local_size(0)>>1; stride > 0; stride >>= 1) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (get_local_id(0) < stride)
+            threadErrorCount[get_local_id(0)] += threadErrorCount[get_local_id(0) + stride];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if (get_local_id(0) == 0)
+        blockErrorCount[get_group_id(0)] = threadErrorCount[0];
+    
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+__kernel void deviceWritePairedModulo(__global uint* base,const uint N,const uint shift,const uint pattern1,const uint pattern2,const uint modulus,const uint iters) { 
+    
+    
+
+    
+    
+    
+    
+
+    const uint startoff = (get_group_id(0) * N * get_local_size(0) + get_local_id(0));
+    const uint startrow = startoff / modulus;
+    const uint startcol = startoff - (startrow*modulus); 
+    const uint row_per_workgroup = get_local_size(0) / modulus;
+    const uint col_per_workgroup = get_local_size(0) - (modulus * row_per_workgroup);
+    uint offset;
+    uint row, col;
+    row = startrow;
+    col = startcol;
+    for (uint i = 0 ; i < N; i++) {
+        offset = row * modulus + col;
+        if (col == shift) *(base+offset) = pattern1;
+        row += row_per_workgroup;
+        col += col_per_workgroup;
+        if (col >= modulus) {
+            col -= modulus;
+            row++;
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+    for (uint j = 0; j < iters; j++) {
+        row = startrow;
+        col = startcol;
+        for (uint i = 0 ; i < N; i++) {
+            offset = row * modulus + col;
+            if (col != shift) *(base+offset) = pattern2;
+            row += row_per_workgroup;
+            col += col_per_workgroup;
+            if (col >= modulus) {
+                col -= modulus;
+                row++;
+            }
+        }
+    }
+} 
+#line 458 "C:\\Users\\Col Rodgers\\Downloads\\memtestCL-master\\memtestCL_kernels.cl"
+__kernel void deviceVerifyPairedModulo(__global uint* base,uint N,const uint shift,const uint pattern1,const uint modulus,__global uint* blockErrorCount,__local uint* threadErrorCount) { 
+    
+    
+    
+    
+    threadErrorCount[get_local_id(0)] = 0;
+    uint offset;
+    
+    for (uint i = 0; i < N; i++) {
+        offset = (get_group_id(0) * N * get_local_size(0) + i * get_local_size(0) + get_local_id(0));
+        if ((offset % modulus) == shift) threadErrorCount[get_local_id(0)] += __popc((*(base+offset)) ^ (pattern1));
+    }
+    
+    for (uint stride = get_local_size(0)>>1; stride > 0; stride >>= 1) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (get_local_id(0) < stride)
+            threadErrorCount[get_local_id(0)] += threadErrorCount[get_local_id(0) + stride];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if (get_local_id(0) == 0)
+        blockErrorCount[get_group_id(0)] = threadErrorCount[0];
+    
+    return;
+}
+
